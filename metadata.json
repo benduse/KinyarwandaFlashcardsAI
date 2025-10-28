@@ -1,0 +1,5 @@
+{
+  "name": "Kinyarwanda Flashcards AI",
+  "description": "An interactive web application for learning Kinyarwanda vocabulary through AI-generated flashcards and quizzes. Progress through basic, medium, and advanced levels, track your learned words, and test your knowledge.",
+  "requestFramePermissions": []
+}
