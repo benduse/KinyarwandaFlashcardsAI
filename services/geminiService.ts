@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Difficulty, Flashcard, QuizQuestion } from '../types';
+import { Difficulty, Flashcard } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -29,34 +29,9 @@ const flashcardSchema = {
   },
 };
 
-const quizSchema = {
-  type: Type.ARRAY,
-  items: {
-    type: Type.OBJECT,
-    properties: {
-      question: {
-        type: Type.STRING,
-        description: 'A multiple-choice question asking for the meaning of a Kinyarwanda word. For example, "What is the meaning of \'muraho\'?"',
-      },
-      options: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.STRING,
-        },
-        description: 'An array of 4 possible English answers.',
-      },
-      correctAnswer: {
-        type: Type.STRING,
-        description: 'The correct English answer from the options array.',
-      },
-    },
-    required: ['question', 'options', 'correctAnswer'],
-  },
-};
-
 export const generateFlashcards = async (level: Difficulty, count: number, learnedWords: string[] = []): Promise<Flashcard[]> => {
   try {
-    let prompt = `Generate ${count} Kinyarwanda flashcards for a ${level.toLowerCase()} level learner. Provide the word, its English meaning, and an example sentence in both languages.`;
+    let prompt = `Generate ${count} new Kinyarwanda flashcards for a ${level.toLowerCase()} level learner. Provide the word, its English meaning, and an example sentence in both languages.`;
 
     if (learnedWords.length > 0) {
       prompt += ` Do not include any of these words: ${learnedWords.join(', ')}.`;
@@ -74,38 +49,41 @@ export const generateFlashcards = async (level: Difficulty, count: number, learn
     const jsonString = response.text.trim();
     const flashcardsData = JSON.parse(jsonString);
 
+    // Normalize IDs to be safe for object keys
     return flashcardsData.map((card: Omit<Flashcard, 'id'>) => ({
       ...card,
-      id: card.word.toLowerCase(),
+      id: card.word.toLowerCase().replace(/[^a-z]/g, ''),
     }));
   } catch (error) {
     console.error("Error generating flashcards:", error);
-    // Fallback with dummy data in case of API error
-    return [
-      { id: 'muraho', word: 'Muraho', meaning: 'Hello (formal)', sentence_kinyarwanda: 'Muraho, neza cyane?', sentence_english: 'Hello, how are you?' },
-      { id: 'amakuru', word: 'Amakuru?', meaning: 'How are you? (news?)', sentence_kinyarwanda: 'Amakuru yawe?', sentence_english: 'How are you?' },
-    ];
+    return [];
   }
 };
 
-export const generateQuiz = async (flashcards: Flashcard[]): Promise<QuizQuestion[]> => {
+export const generateFlashcardsForWords = async (words: string[]): Promise<Flashcard[]> => {
+  if (words.length === 0) return [];
   try {
-    const wordsForQuiz = flashcards.map(fc => `"${fc.word}" (meaning: ${fc.meaning})`).join(', ');
-    const prompt = `Create a multiple-choice quiz with ${flashcards.length} questions based on these Kinyarwanda words and their meanings: ${wordsForQuiz}. Each question should ask for the English meaning of a Kinyarwanda word and provide 4 options.`;
+    const prompt = `Generate full flashcard details for the following Kinyarwanda words: ${words.join(', ')}. For each word, provide its English meaning, and an example sentence in both Kinyarwanda and English. Ensure the 'word' field in the response matches the requested word exactly.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
-        responseSchema: quizSchema,
+        responseSchema: flashcardSchema,
       },
     });
 
     const jsonString = response.text.trim();
-    return JSON.parse(jsonString);
+    const flashcardsData = JSON.parse(jsonString);
+
+    // Normalize IDs to be safe for object keys
+    return flashcardsData.map((card: Omit<Flashcard, 'id'>) => ({
+      ...card,
+      id: card.word.toLowerCase().replace(/[^a-z]/g, ''),
+    }));
   } catch (error) {
-    console.error("Error generating quiz:", error);
+    console.error("Error generating flashcards for review:", error);
     return [];
   }
 };

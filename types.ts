@@ -14,17 +14,21 @@ export interface Flashcard {
   sentence_english: string;
 }
 
-export interface QuizQuestion {
-  question: string;
-  options: string[];
-  correctAnswer: string;
+export interface SpacedRepetitionInfo {
+  nextReviewDate: string; // ISO date string
+  interval: number; // in days
+  easeFactor: number;
+  repetitions: number;
 }
 
 export interface User {
   username: string;
+  isGuest?: boolean;
   learnedWords: {
-    [key in Difficulty]: string[];
+    [key in Difficulty]: {
+      [wordId: string]: SpacedRepetitionInfo;
+    };
   };
 }
 
-export type View = 'select_difficulty' | 'flashcards' | 'quiz' | 'login' | 'dashboard' | 'review';
+export type View = 'dashboard' | 'flashcards' | 'login';
